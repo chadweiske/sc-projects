@@ -3,6 +3,16 @@ s.meter;
 s.scope;
 s.volume.gui;
 
+o = Server.default.options;
+o.inDevice_("Windows WASAPI : Microphone");
+o.outDevice_("Windows WASAPI : Speakers");
+Server.default.reboot;
+
+ServerOptions.devices;
+
+Server.default.options.outDevice = "MME : StudioLive WDM 1/2 (StudioLive";
+
+// Test Tones
 // Phase-Coherent Pink Noise
 
 {[PinkNoise.ar(0.2)]!2}.play;
@@ -18,6 +28,22 @@ s.volume.gui;
 // True Stereo Brown Noise
 
 {[BrownNoise.ar(0.2), BrownNoise.ar(0.2)]}.play;
+
+// Path persistence for sample playback
+
+thisProcess.nowExecutingPath;
+
+PathName(thisProcess.nowExecutingPath).parentPath;
+
+PathName(thisProcess.nowExecutingPath).parentPath ++ "audio";
+
+~audiopath = PathName(thisProcess.nowExecutingPath).parentPath ++ "audio/";
+
+(
+~voice = Buffer.read(s, ~audiopath ++ "");
+)
+
+
 
 // "My Bullshit Sound" or whatever...
 
@@ -58,6 +84,8 @@ x.free;
 
 x = ~fn.play(args: [\freq, 150]);
 x.free;
+
+
 
 // Explicit SynthDef
 
@@ -137,4 +165,96 @@ f = {
 	sig = SinOsc.ar(500 + mod);
 	sig = sig * 0.2;
 }.play;
+)
+
+// Week 5
+// Sample Playback
+
+b.free;
+
+b = Buffer.read(s, "");
+
+b.play;
+b.query;
+
+thisProcess.nowExecutingPath;
+
+PathName(thisProcess.nowExecutingPath).parentPath;
+
+PathName(thisProcess.nowExecutingPath).parentPath ++ "audio/";
+
+~audiopath = PathName(thisProcess.nowExecutingPath).parentPath ++ "audio/";
+
+Buffer.freeAll;
+
+//(
+//b = [
+//    Buffer.read(s, ~audiopath ++ ""),
+//    Buffer.read(s, ~audiopath ++ "")
+//];
+//)
+//
+//b[0].play;
+//b[1].play;
+
+Buffer.freeAll;
+
+(
+b = (
+	BD: Buffer.read(s, ~audiopath ++ "BD A 808 Decay C 04.wav"),
+    BD2: Buffer.read(s, ~audiopath ++ "BD A 808 Decay F 04.wav"),
+	SN: Buffer.read(s, ~audiopath ++ "Snare 8.wav"),
+	CH: Buffer.read(s, ~audiopath ++ "CH Combo 808.wav"),
+	OH: Buffer.read(s, ~audiopath ++ "OH 808 Decay 05.wav")
+	)
+)
+
+b[\BD].play;
+b[\BD2].play;
+b[\SN].play;
+b[\CH].play;
+b[\OH].play;
+
+///////////
+
+(
+SynthDef.new(\play, {
+	arg buf=0;
+	var sig:
+	sig = PlayBuf.ar(1, buf);
+	Out.ar(0, sig);
+}).add;
+)
+
+Synth.new(\play, [\buf, b[\voice]]);
+
+x.set(\t_trig, 1, \spos, rrand(0, b[\voice].numFrames - 1));
+
+(
+SynthDef.new(\play2, {
+    arg buf=0, rate=1, spos=0;
+    var sig, trig;
+    trig = Impulse.kr(4);
+    sig = PlayBuf.ar(2, buf, rate, trig, spos);
+    Out.ar(0, sig);
+}).add;
+)
+
+x = Synth.new(\play2, [\buf, b[\voice], \rate, 1, \spos, 48000]);
+b[\voice].numFrames;
+
+(
+SynthDef.new(\play2, {
+    arg buf=0, rate=1;
+    var sig, trig, env, spos;
+    trig = Impulse.kr(2);
+    spos = TIRand.kr(0, BufFrames.kr(buf) - 1, trig);
+    env = EnvGen.kr(
+        Env.new([0, 1, 0], [0.01, 0.5], [1, -2]),
+        trig
+    );
+    sig = PlayBuf.ar(2, buf, rate, trig, spos);
+    sig = sig * env;
+    Out.ar(0, sig);
+}).add;
 )
